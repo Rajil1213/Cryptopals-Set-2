@@ -46,7 +46,7 @@ def encryption_oracle(your_string):
     Returns:
         [bytes]: the byte-string of encrypted text
     """
-    msg = b'The unknown string given to you was: '
+    msg = bytes('The unknown string given to you was:\n', 'ascii')
     # append the `UNKNOWN_STRING` given to us to the `msg`
     plaintext = msg + b64decode(UNKNOWN_STRING)
     # add `your_string` to prepend to `plaintext` and apply `PKCS#7` padding to correct size
@@ -105,42 +105,40 @@ def ecb_decrypt(block_size):
         block_size (int): the `block_size` used by the `encryption_oracle()` for encryption
     """
     # common = lower_cases + upper_cases + space + numbers
+    # to optimize brute-force approach
     common = list(range(ord('a'), ord('z'))) + list(range(ord('A'), ord('Z'))) + [ord(' ')] + list(range(ord('0'), ord('9')))
     rare = [i for i in range(256) if i not in common]
     possibilities = bytes(common + rare)
     
-    found_block = b'' # holds the characters in the current block being investigated
     plaintext = b'' # holds the entire plaintext = sum of `found_block`'s
     check_length = block_size
 
     while True:
         # as more characters in the block are found, the number of A's to prepend decreases
-        prepend = b'A' * (block_size - 1 - len(found_block))
+        prepend = b'A' * (block_size - 1 - (len(plaintext) % block_size))
         actual = encryption_oracle(prepend)
         if check_length > len(actual):
-            print(f"Plaintext: { plaintext }")
+            print(f"Plaintext: \n{ plaintext }")
             return
         actual = actual[:check_length]
 
         found = False
         for byte in possibilities:
             value = bytes([byte])
-            your_string = prepend + plaintext + found_block + value
+            your_string = prepend + plaintext + value
             produced = encryption_oracle(your_string)[:check_length]
             if actual == produced:
-                found_block += value
+                plaintext += value
                 found = True
                 break
         
         if not found:
             print(f'Possible end of plaintext: No matches found.')
-            print(f"Plaintext: { plaintext + found_block }")
+            print(f"Plaintext: \n{ plaintext.decode('ascii') }")
             return
         
-        if len(found_block) == block_size:
-            plaintext += found_block
+        if len(plaintext) % block_size == 0: 
             check_length += block_size
-            found_block = b''
     
 
 def main():
