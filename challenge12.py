@@ -1,7 +1,6 @@
 from base64 import b64decode
 from Crypto import Random 
 from Crypto.Cipher import AES
-from random import Random as rand
 
 UNKNOWN_STRING = b"""
 Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg
