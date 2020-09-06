@@ -13,9 +13,10 @@ YnkK"""
 KEY = Random.new().read(16)
 
 def pad(your_string, msg):
-    """pads the `msg` byte-string with 5-10 random bytes on both ends, and then PKCS#7 padding
+    """prepends the `msg` with `your_string` and then, applies PKCS#7 padding
 
     Args:
+        your_string (bytes): the byte-string to prepend to `msg`
         msg (bytes): a byte-string that is to be padded
 
     Returns:
@@ -37,37 +38,48 @@ def pad(your_string, msg):
     
 
 def encryption_oracle(your_string):
-    """encrypts `msg` using AES in CBC/ECB alternatively with equal probability
+    """encrypts `your_string` + msg` + `UNKNOWN_STRING` using AES-ECB-128
 
     Args:
-        msg (bytes): byte-string
+        your_string (bytes): byte-string used to prepend
 
     Returns:
         [bytes]: the byte-string of encrypted text
     """
-    msg = b'The unknown string given to you was: ' + b64decode(UNKNOWN_STRING)
-    paddedMsg = pad(your_string, msg)
+    msg = b'The unknown string given to you was: '
+    # append the `UNKNOWN_STRING` given to us to the `msg`
+    plaintext = msg + b64decode(UNKNOWN_STRING)
+    # add `your_string` to prepend to `plaintext` and apply `PKCS#7` padding to correct size
+    paddedPlaintext= pad(your_string, plaintext)
 
     cipher = AES.new(KEY, AES.MODE_ECB)
-    ciphertext = cipher.encrypt(paddedMsg)
+    ciphertext = cipher.encrypt(paddedPlaintext)
 
     return ciphertext
 
 
 def detect_block_size():
+    """detects the `block_size` used by the encryption_oracle()
+
+    Returns:
+        int: the `block_size` used by the encryption_oracle
+    """
     feed = b"A"
     length = 0
-    cnt = 0
     while True:
         cipher = encryption_oracle(feed)
+        # on every iteration, add one more character
         feed  += feed
+        # if the length of the ciphertext increases by more than 1,
+        # PKCS#7 padding must have been added to make the size of plaintext == block_size
+        # increase in the size gives the value of block_size
         if not length == 0 and len(cipher) - length > 1:
             return len(cipher) - length
         length = len(cipher)
         
 
 def detect_mode(cipher):
-    """detects whether the cipher-text was encrypted in ECB or CBC mode
+    """detects whether the cipher-text was encrypted in ECB or not
 
     Args:
         cipher (bytes): byte-string of cipher-text
@@ -83,34 +95,40 @@ def detect_mode(cipher):
     uniqueChunks = set(chunks)
     if len(chunks) > len(uniqueChunks):
         return "ECB"
-
     return "not ECB"
 
 
 def ecb_decrypt(block_size):
+    """decrypts the plaintext (without key) using byte-at-a-time attack (simple)
+
+    Args:
+        block_size (int): the `block_size` used by the `encryption_oracle()` for encryption
+    """
     # common = lower_cases + upper_cases + space + numbers
     common = list(range(ord('a'), ord('z'))) + list(range(ord('A'), ord('Z'))) + [ord(' ')] + list(range(ord('0'), ord('9')))
     rare = [i for i in range(256) if i not in common]
     possibilities = bytes(common + rare)
-    found_block = b''
-    plaintext = b''
+    
+    found_block = b'' # holds the characters in the current block being investigated
+    plaintext = b'' # holds the entire plaintext = sum of `found_block`'s
     check_length = block_size
+
     while True:
-        append = b'A' * (15 - len(found_block))
-        actual = encryption_oracle(append)
+        # as more characters in the block are found, the number of A's to prepend decreases
+        prepend = b'A' * (block_size - 1 - len(found_block))
+        actual = encryption_oracle(prepend)
         if check_length > len(actual):
             print(f"Plaintext: { plaintext }")
             return
         actual = actual[:check_length]
+
         found = False
         for byte in possibilities:
             value = bytes([byte])
-            your_string = append + plaintext + found_block + value
+            your_string = prepend + plaintext + found_block + value
             produced = encryption_oracle(your_string)[:check_length]
             if actual == produced:
-                # print(f"your-string = { your_string }")
                 found_block += value
-                # print(found)
                 found = True
                 break
         
@@ -120,27 +138,24 @@ def ecb_decrypt(block_size):
             return
         
         if len(found_block) == block_size:
-            # print(f"Block { check_length // block_size }: { found_block }")
             plaintext += found_block
             check_length += block_size
             found_block = b''
     
 
 def main():
-    """
     # detect block size
     block_size = detect_block_size()
     print(f"Block Size is { block_size }")
 
     # detect the mode (should be ECB)
-    dumb_plaintext = b"A" * 50
-    dumb_cipher = encryption_oracle(b'', dumb_plaintext)
-    mode = detect_mode(dumb_cipher)
+    repeated_plaintext = b"A" * 50
+    cipher = encryption_oracle(repeated_plaintext)
+    mode = detect_mode(cipher)
     print(f"Mode of encryption is { mode }")
-    """
-    block_size = 16 
-    ecb_decrypt(block_size)
 
+    # decrypt the plaintext inside `encryption_oracle()`
+    ecb_decrypt(block_size)
 
 
 if __name__ == "__main__":
