@@ -115,11 +115,7 @@ def ecb_decrypt(block_size):
     while True:
         # as more characters in the block are found, the number of A's to prepend decreases
         prepend = b'A' * (block_size - 1 - (len(plaintext) % block_size))
-        actual = encryption_oracle(prepend)
-        if check_length > len(actual):
-            print(f"Plaintext: \n{ plaintext }")
-            return
-        actual = actual[:check_length]
+        actual = encryption_oracle(prepend)[:check_length]
 
         found = False
         for byte in possibilities:
