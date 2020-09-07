@@ -10,6 +10,10 @@ class objectify:
         self.obj = OrderedDict()
 
     def convert(self):
+        # if already converted
+        if len(self.obj) > 0:
+            return self.obj
+
         # get key=value pairs
         kv = self.cookie.split('&')
         # assign key=value pairs to dictionary: dict[key]=value
