@@ -101,7 +101,13 @@ def detect_mode(cipher):
 
 
 def detect_prefix_length():
+    """Detects the length of the prefix used in the oracle
+
+    Returns:
+        int: the length of the prefix
+    """
     block_size = detect_block_size()
+
     # first find number of integer blocks occupied
     test_case_1 = encryption_oracle(b'a')
     test_case_2 = encryption_oracle(b'b')
@@ -111,6 +117,8 @@ def detect_prefix_length():
 
     blocks = 0
     min_length = min(length1, length2)
+    # if the any of the blocks (starting from the left) are the same,
+    # these blocks are occupied by the `PREFIX`
     for i in range(0, min_length, block_size):
         if test_case_1[i:i+block_size] != test_case_2[i:i+block_size]:
             break
@@ -119,6 +127,9 @@ def detect_prefix_length():
     # now calculate the residual number of bytes and add to total size 
     test_input = b''
     length = blocks * block_size
+    # if adding an extra `?` does not change the current block of cipher-text
+    # we've reached the end of that block, and so,
+    # we've found the number of extra characters needed to complete the block with some prefix characters
     for extra in range(block_size):
         test_input += b'?'
         curr = encryption_oracle(test_input)[length: length+block_size]
