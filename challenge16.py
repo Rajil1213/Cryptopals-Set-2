@@ -85,7 +85,6 @@ def remove_padding(paddedMsg, block_size):
 
 
 QUOTE = {b';':b'%3B', b'=':b'%3D'}
-UNQUOTE = {v:k for k, v in QUOTE.items()}
 
 KEY = Random.new().read(AES.block_size)
 IV = bytes(AES.block_size) # for simplicity just a bunch of 0's
@@ -121,9 +120,19 @@ def check(ciphertext):
 
 def test():
 
-    input_string = b";admin=true;"
+    input_string = b'A' * AES.block_size * 2
     ciphertext = cbc_encrypt(input_string)
-    if check(ciphertext):
+    
+    required = pad(b";admin=true;", AES.block_size)
+    inject = bytes([r ^ ord('A') for r in required])
+
+    # extra = length of ciphertext - length of injected text - length of prefix = one block of input + suffix
+    extra = len(ciphertext) - len(inject) - 2 * AES.block_size 
+    inject = bytes(2 * AES.block_size) + inject + bytes(extra)
+
+    crafted = bytes([x ^ y for x, y in zip(ciphertext, inject)])
+
+    if check(crafted):
         print("Admin Found")
     else:
         print("Admin Not Found")
